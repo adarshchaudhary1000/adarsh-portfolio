@@ -6,7 +6,7 @@
   // Theme (pull cord)
   const root = document.documentElement;
   const saved = safe(() => localStorage.getItem("theme"));
-  if (saved) root.dataset.theme = saved;
+  root.dataset.theme = saved || "dark"; // dark by default; the cord still toggles and remembers the choice
   $("#cord").addEventListener("click", () => {
     const next = root.dataset.theme === "dark" ? "light" : "dark";
     root.dataset.theme = next;
