@@ -240,11 +240,11 @@
     dsa: { title: "DSA Platform", lead: "A learning and competitive-programming platform I'm building so developers can practise, compete and get better.", items: [
       { t: "DSA by Adarsh", d: "Learn, practise and compete in one place.", href: "https://dsa-by-adarsh.vercel.app" },
     ] },
-    cp: { title: "Competitive Programming", lead: "Solving hard problems fast, and ranking among the best in the world while doing it.", items: [
-      { t: "Codeforces", d: "Expert, with 2500+ problems solved." },
-      { t: "CodeChef", d: "5★ coder. Global rank 36 of 30,000, and Div 2 global rank 27." },
-      { t: "TCS CodeVita", d: "Global rank 316 of 450,000." },
-      { t: "Hackathon", d: "Winner, with the Ledger Book App." },
+    cp: { title: "Competitive Programming", lead: "Solving hard problems fast, and ranking among the best in the world while doing it.", stats: true, items: [
+      { t: "Codeforces", big: "Expert", d: "2500+ problems solved" },
+      { t: "CodeChef", big: "5★", d: "Global rank 36 of 30,000 · Div 2 global rank 27" },
+      { t: "TCS CodeVita", big: "Rank 316", d: "Global, out of 450,000 participants" },
+      { t: "Hackathon", big: "Winner", d: "Built the Ledger Book App" },
     ] },
     edu: { title: "Education", lead: "Teaching data structures, algorithms and problem solving, and making developers better.", items: [
       { t: "Newton School of Technology", d: "SDE 1 since Jul 2025. Mentoring students in DSA, from arrays and recursion to trees, and reviewing their code for time and space complexity." },
@@ -255,13 +255,22 @@
   let openDoor = null;
   const fill = (r) => {
     rTitle.textContent = r.title; rLead.textContent = r.lead; rList.textContent = "";
+    rList.classList.toggle("room__list--stats", !!r.stats);
     r.items.forEach((it) => {
       const el = document.createElement(it.href ? "a" : "div");
       el.className = "room__item";
       if (it.href) { el.href = it.href; el.target = "_blank"; el.rel = "noopener"; }
-      const b = document.createElement("b"); b.textContent = it.t;
-      const s = document.createElement("span"); s.textContent = it.d;
-      el.append(b, s);
+      if (it.big) {
+        el.classList.add("room__item--stat");
+        const k = document.createElement("i"); k.className = "mono"; k.textContent = it.t;
+        const n = document.createElement("strong"); n.textContent = it.big;
+        const s = document.createElement("span"); s.textContent = it.d;
+        el.append(k, n, s);
+      } else {
+        const b = document.createElement("b"); b.textContent = it.t;
+        const s = document.createElement("span"); s.textContent = it.d;
+        el.append(b, s);
+      }
       if (it.href) { const e = document.createElement("em"); e.textContent = "Visit ↗"; el.append(e); }
       rList.appendChild(el);
     });
