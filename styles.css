@@ -152,6 +152,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 a.room__item:hover{transform:translateY(-3px);border-color:var(--accent)}
 .room__item b{display:block;font-size:1.35rem;letter-spacing:-.02em}
 .room__item span{display:block;margin-top:.4rem;color:var(--mute);line-height:1.5}
+.room__list--stats{grid-template-columns:repeat(2,1fr);gap:1.1rem}
+.room__item--stat{display:flex;flex-direction:column;justify-content:space-between;min-height:clamp(200px,28vw,280px);padding:1.6rem 1.8rem;border-radius:28px}
+.room__item--stat i{font-style:normal;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.room__item--stat strong{display:block;margin-top:1rem;font-size:clamp(2.6rem,7vw,5rem);line-height:1;letter-spacing:-.04em;font-weight:800;color:var(--accent)}
+.room__item--stat span{margin-top:1rem}
+@media (max-width:520px){.room__list--stats{grid-template-columns:1fr}}
 .room__item em{display:inline-block;margin-top:.8rem;font-style:normal;color:var(--accent);font-weight:600}
 
 /* Story */
