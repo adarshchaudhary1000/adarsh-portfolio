@@ -5,12 +5,10 @@
 
   // Theme (pull cord)
   const root = document.documentElement;
-  const saved = safe(() => localStorage.getItem("theme"));
-  root.dataset.theme = saved || "dark"; // dark by default; the cord still toggles and remembers the choice
+  root.dataset.theme = "dark"; // every visit starts in dark mode; the cord switches it for that visit only
   const toggleTheme = () => {
     const next = root.dataset.theme === "dark" ? "light" : "dark";
     root.dataset.theme = next;
-    safe(() => localStorage.setItem("theme", next));
   };
 
   // Pull cord: a verlet rope (linked segments + gravity). Grab the bead, pull, let go: it whips and settles.
