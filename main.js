@@ -7,11 +7,117 @@
   const root = document.documentElement;
   const saved = safe(() => localStorage.getItem("theme"));
   root.dataset.theme = saved || "dark"; // dark by default; the cord still toggles and remembers the choice
-  $("#cord").addEventListener("click", () => {
+  const toggleTheme = () => {
     const next = root.dataset.theme === "dark" ? "light" : "dark";
     root.dataset.theme = next;
     safe(() => localStorage.setItem("theme", next));
+  };
+
+  // Pull cord: a verlet rope (linked segments + gravity). Grab the bead, pull, let go: it whips and settles.
+  const cord = $("#cord"), cv = $("#cordCanvas"), ctx = cv.getContext("2d");
+  const still = matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const CW = 200, CH = 420, AX = 100, N = 16;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = CW * dpr; cv.height = CH * dpr; ctx.scale(dpr, dpr);
+  const ropeLen = () => (innerWidth < 700 ? 110 : 150);
+  let L = ropeLen();
+  const pts = Array.from({ length: N + 1 }, (_, i) => ({ x: AX, y: (i * L) / N, px: AX, py: (i * L) / N }));
+  const invMass = pts.map((_, i) => (i === 0 ? 0 : i === N ? 0.35 : 1)); // anchored top, heavy bead
+  let ext = 1, drag = null, acc = 0, last = performance.now(), swayT = 0;
+  addEventListener("resize", () => { L = ropeLen(); });
+
+  const physics = (dt) => {
+    swayT += dt;
+    const g = 2600, wind = still ? 0 : Math.sin(swayT * 1.2) * Math.cos(swayT * 0.41) * 0.012;
+    for (let i = 1; i <= N; i++) {
+      const p = pts[i];
+      const vx = (p.x - p.px) * 0.994, vy = (p.y - p.py) * 0.994;
+      p.px = p.x; p.py = p.y;
+      p.x += vx + wind * (i / N);
+      p.y += vy + g * dt * dt * (i === N ? 1.5 : 1);
+    }
+    if (drag) {
+      const e = pts[N]; e.x = drag.tx; e.y = drag.ty; e.px = e.x; e.py = e.y;
+    } else {
+      ext = 1 + (ext - 1) * 0.975;                // the rope retracts, which gives the whip
+    }
+    for (let i = 1; i <= N; i++) if (pts[i].y < 6) { pts[i].y = 6; if (pts[i].py < 6) pts[i].py = 6; }   // housing at the top
+    const rest = (L / N) * ext;
+    for (let it = 0; it < 16; it++) {
+      for (let i = 1; i <= N; i++) {
+        const a = pts[i - 1], b = pts[i];
+        const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.0001;
+        if (d <= rest) continue;                  // a rope resists stretching, never compression: it goes slack
+        const ia = invMass[i - 1], ib = drag && i === N ? 0 : invMass[i];
+        const w = ia + ib; if (!w) continue;
+        const k = (d - rest) / d / w;
+        a.x += dx * k * ia; a.y += dy * k * ia;
+        b.x -= dx * k * ib; b.y -= dy * k * ib;
+      }
+    }
+  };
+
+  const draw = () => {
+    ctx.clearRect(0, 0, CW, CH);
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    const path = () => {
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < N; i++) {
+        const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2;
+        ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+      }
+      ctx.lineTo(pts[N].x, pts[N].y);
+    };
+    path(); ctx.strokeStyle = "#6e5f4c"; ctx.lineWidth = 3.6; ctx.stroke();
+    path(); ctx.strokeStyle = "#cdbb9f"; ctx.lineWidth = 1.5; ctx.setLineDash([2.5, 3.5]); ctx.stroke(); ctx.setLineDash([]);
+    // bead, aligned with the last rope segment
+    const e = pts[N], p = pts[N - 1];
+    const ang = Math.atan2(e.y - p.y, e.x - p.x);
+    ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(ang - Math.PI / 2);
+    ctx.shadowColor = "rgba(0,0,0,.45)"; ctx.shadowBlur = 8; ctx.shadowOffsetY = 4;
+    const gr = ctx.createRadialGradient(-4, 8, 2, 0, 14, 20);
+    gr.addColorStop(0, "#d99a64"); gr.addColorStop(.55, "#8a4d27"); gr.addColorStop(1, "#3d200e");
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(0, 16, 10.5, 17, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // keep the invisible hit-button on top of the bead (also makes the cord keyboard/touch accessible)
+    const r = cv.getBoundingClientRect();
+    const bx = r.left + e.x + Math.cos(ang) * 16, by = r.top + e.y + Math.sin(ang) * 16;
+    cord.style.transform = `translate(${(bx - 24).toFixed(1)}px, ${(by - 32).toFixed(1)}px)`;
+  };
+
+  const loop = (now) => {
+    acc += Math.min(0.05, (now - last) / 1000); last = now;
+    while (acc >= 1 / 120) { physics(1 / 120); acc -= 1 / 120; }
+    draw(); requestAnimationFrame(loop);
+  };
+  requestAnimationFrame((t) => { last = t; loop(t); });
+  if (!still) setTimeout(() => { pts[N].x += 16; pts[N - 3].x += 7; }, 2300);   // a small nudge so it visibly swings
+
+  const toLocal = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  cord.addEventListener("pointerdown", (e) => {
+    cord.setPointerCapture(e.pointerId);
+    const m = toLocal(e), b = pts[N];
+    drag = { gx: b.x - m.x, gy: b.y - m.y, tx: b.x, ty: b.y, x0: e.clientX, y0: e.clientY, moved: 0 };
   });
+  cord.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const m = toLocal(e);
+    let tx = m.x + drag.gx, ty = m.y + drag.gy;
+    const dx = tx - AX, dy = ty, d = Math.hypot(dx, dy), max = L * 1.55;
+    if (d > max) { tx = AX + (dx / d) * max; ty = (dy / d) * max; }
+    drag.tx = tx; drag.ty = Math.max(ty, 20);
+    ext = Math.max(1, Math.min(1.55, Math.hypot(drag.tx - AX, drag.ty) / L));
+    drag.moved = Math.max(drag.moved, Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0));
+  });
+  const release = () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if ((ext - 1) * L > 20 || d.moved < 6) toggleTheme();   // pull it, or simply tap it
+    if (d.moved < 6) { ext = 1.18; pts[N].px -= 2.5; }
+  };
+  cord.addEventListener("pointerup", release);
+  cord.addEventListener("pointercancel", release);
+  cord.addEventListener("click", (e) => { if (e.detail === 0) { toggleTheme(); ext = 1.25; pts[N].px -= 3; } });  // keyboard
 
   // Loader counter 000 -> 100
   const count = $("#loaderCount"), bar = $("#loaderBar"), loader = $("#loader");
